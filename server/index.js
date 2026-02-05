@@ -104,39 +104,56 @@ app.post("/add-item", isAuth, async (req, res) => {
   }
 });
 
-/* ===== AUTH ROUTES ===== */
 app.post("/register", async (req, res) => {
   try {
     const { name, username, password, confirm } = req.body;
 
-    console.log("Register payload:", req.body); // Debug log
-
+    // Check for missing fields
     if (!name || !username || !password || !confirm) {
       return res.status(400).json({ success: false, message: "Incomplete data" });
     }
 
+    // Check password match
     if (password !== confirm) {
       return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
+    // Check if username already exists
     const exists = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
     if (exists.rows.length > 0) {
       return res.status(400).json({ success: false, message: "User already exists" });
     }
 
+    // Hash password
     const hashedPassword = await hashPassword(password);
-    await pool.query("INSERT INTO users (name, username, password) VALUES ($1, $2, $3)", [
-      name,
-      username,
-      hashedPassword,
-    ]);
 
-    res.json({ success: true, message: "Registered successfully" });
+    // Insert user
+    const result = await pool.query(
+      "INSERT INTO users (name, username, password) VALUES ($1, $2, $3) RETURNING id, username",
+      [name, username, hashedPassword]
+    );
+
+    // Respond with success
+    res.json({ success: true, message: "Registered successfully", user: result.rows[0] });
+
   } catch (err) {
-    console.error("Register Error:", err.stack);
-    res.status(500).json({ success: false, message: "Server error during registration" });
+    console.error("Register Error:", err); // Log full error
+
+    // If it's a PostgreSQL error
+    if (err.code) {
+      res.status(500).json({
+        success: false,
+        message: `Database error: ${err.message} (code: ${err.code})`
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Unexpected server error during registration"
+      });
+    }
   }
 });
+
 
 app.post("/login", async (req, res) => {
   try {
