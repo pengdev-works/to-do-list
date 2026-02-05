@@ -1,38 +1,59 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import axios from "axios";
 
 function App() {
+  const navigate = useNavigate();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState(""); // success | error
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setMessage("");
 
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/login`,
-        { username, password }
+        { username, password },
+        { withCredentials: true } // important if using sessions
       );
 
       if (response.data.success) {
         setType("success");
         setMessage("Login successful!");
+
+        // Save auth data (adjust based on backend)
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        localStorage.setItem("token", response.data.token);
+
+        // Redirect after short delay
+        setTimeout(() => {
+          navigate("/home");
+        }, 800);
       } else {
         setType("error");
-        setMessage(response.data.message);
+        setMessage(response.data.message || "Login failed");
       }
     } catch (error) {
       setType("error");
-      setMessage("Username or password is incorrect");
+      setMessage(
+        error.response?.data?.message ||
+        "Username or password is incorrect"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-black px-4">
       <div className="w-full max-w-sm bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8">
+
         <h1 className="text-4xl font-bold text-center mb-6 text-white">
           LOGIN
         </h1>
@@ -84,10 +105,15 @@ function App() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md
-                       font-semibold transition active:scale-95"
+            disabled={loading}
+            className={`w-full py-2 rounded-md font-semibold transition active:scale-95
+              ${
+                loading
+                  ? "bg-gray-500 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
 
           <p className="text-center text-sm text-gray-400">
