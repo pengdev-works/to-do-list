@@ -18,6 +18,7 @@ function Register() {
     e.preventDefault();
     setMessage("");
 
+    // Frontend validation
     if (password !== confirm) {
       setType("error");
       setMessage("Passwords do not match");
@@ -27,15 +28,18 @@ function Register() {
     setLoading(true);
 
     try {
+      // Send all fields including confirm
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/register`,
-        { name, username, password }
+        { name, username, password, confirm },
+        { withCredentials: true } // important if backend uses sessions
       );
 
       if (response.data.success) {
         setType("success");
         setMessage("Account created successfully!");
 
+        // Redirect to login after short delay
         setTimeout(() => {
           navigate("/");
         }, 1000);
@@ -143,10 +147,9 @@ function Register() {
             type="submit"
             disabled={loading}
             className={`w-full py-2 rounded-md font-semibold transition active:scale-95
-              ${
-                loading
-                  ? "bg-gray-500 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+              ${loading
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
               }`}
           >
             {loading ? "Creating account..." : "Register"}
