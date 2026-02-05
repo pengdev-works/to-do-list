@@ -2,20 +2,22 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../components/Header.jsx";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function List() {
-  const { id } = useParams(); // list ID
+  const { id } = useParams();
+  const navigate = useNavigate();
+
   const [items, setItems] = useState([]);
   const [listTitle, setListTitle] = useState("");
   const [newItem, setNewItem] = useState("");
-  const navigate = useNavigate();
 
   // Fetch items for this list
   const fetchItems = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/get-items/${id}`);
+      const res = await fetch(`${API_URL}/get-items/${id}`);
       const data = await res.json();
-      if (data.success) setItems(data.items);
-      else setItems([]);
+      setItems(data.success ? data.items : []);
     } catch (err) {
       console.error("Error fetching items:", err);
     }
@@ -24,14 +26,14 @@ function List() {
   // Fetch list title
   const fetchListTitle = async () => {
     try {
-      const res = await fetch("http://localhost:3000/get-list");
+      const res = await fetch(`${API_URL}/get-list`);
       const data = await res.json();
       if (data.success) {
-        const list = data.list.find((l) => l.id === id);
+        const list = data.list.find((l) => String(l.id) === String(id));
         if (list) setListTitle(list.title);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching list title:", err);
     }
   };
 
@@ -45,14 +47,18 @@ function List() {
     if (!newItem.trim()) return;
 
     try {
-      const res = await fetch("http://localhost:3000/add-item", {
+      const res = await fetch(`${API_URL}/add-item`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listId: id, description: newItem }),
+        body: JSON.stringify({
+          listId: id,
+          description: newItem
+        }),
       });
+
       const data = await res.json();
       if (data.success) {
-        setItems(prev => [...prev, data.item]); // Add item to table
+        setItems((prev) => [...prev, data.item]);
         setNewItem("");
       } else {
         alert(data.message);
@@ -65,10 +71,11 @@ function List() {
   return (
     <>
       <Header />
+
       <div className="p-6 max-w-3xl mx-auto">
         <button
           className="mb-4 text-blue-700 hover:underline"
-          onClick={() => navigate("/Home")}
+          onClick={() => navigate("/home")}
         >
           ← Back to lists
         </button>
@@ -97,30 +104,28 @@ function List() {
           <table className="min-w-full bg-white">
             <thead className="bg-slate-800 text-white">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold uppercase tracking-wider bg-amber-300 text-blue-700">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold uppercase tracking-wider bg-amber-200 text-blue-700">
+                <th className="px-6 py-3 bg-amber-300 text-blue-700">ID</th>
+                <th className="px-6 py-3 bg-amber-200 text-blue-700">
                   Description
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold uppercase tracking-wider bg-amber-300 text-blue-700">
+                <th className="px-6 py-3 bg-amber-300 text-blue-700">
                   Status
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y">
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-6 py-4 text-gray-500 text-center">
+                  <td colSpan={3} className="px-6 py-4 text-center text-gray-500">
                     No items yet
                   </td>
                 </tr>
               )}
               {items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-100 transition">
-                  <td className="px-6 py-4 text-sm text-gray-700">{item.id}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{item.description}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{item.status}</td>
+                <tr key={item.id} className="hover:bg-gray-100">
+                  <td className="px-6 py-4">{item.id}</td>
+                  <td className="px-6 py-4">{item.description}</td>
+                  <td className="px-6 py-4">{item.status}</td>
                 </tr>
               ))}
             </tbody>
