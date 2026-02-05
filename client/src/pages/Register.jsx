@@ -28,12 +28,12 @@ function Register() {
     setLoading(true);
 
     try {
-      // Send all fields including confirm
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/register`,
-        { name, username, password, confirm },
-        { withCredentials: true } // important if backend uses sessions
-      );
+     const response = await axios.post(
+  `${import.meta.env.VITE_API_URL}/register`,
+  { name, username, password, confirm }, // <-- include confirm
+  { withCredentials: true } // important if backend uses session
+);
+
 
       if (response.data.success) {
         setType("success");

@@ -105,31 +105,36 @@ app.post("/add-item", isAuth, async (req, res) => {
   }
 });
 
-/* ===== AUTH ROUTES ===== */
 app.post("/register", async (req, res) => {
   try {
     const { name, username, password, confirm } = req.body;
-    if (!name || !username || !password || !confirm)
+    if (!name || !username || !password || !confirm) {
       return res.status(400).json({ success: false, message: "Incomplete data" });
+    }
 
-    if (password !== confirm)
+    if (password !== confirm) {
       return res.status(400).json({ success: false, message: "Passwords do not match" });
+    }
 
-    const exists = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
-    if (exists.rows.length > 0)
+    const exists = await pool.query(
+      "SELECT id FROM users WHERE username = $1",
+      [username]
+    );
+
+    if (exists.rows.length > 0) {
       return res.status(400).json({ success: false, message: "User already exists" });
+    }
 
     const hashedPassword = await hashPassword(password);
-    await pool.query("INSERT INTO users (name, username, password) VALUES ($1, $2, $3)", [
-      name,
-      username,
-      hashedPassword,
-    ]);
+    await pool.query(
+      "INSERT INTO users (name, username, password) VALUES ($1, $2, $3)",
+      [name, username, hashedPassword]
+    );
 
     res.json({ success: true, message: "Registered successfully" });
   } catch (err) {
-    console.error(err.stack);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Register Error:", err); // Add logging
+    res.status(500).json({ success: false, message: "Server error during registration" });
   }
 });
 
