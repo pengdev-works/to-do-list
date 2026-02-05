@@ -16,6 +16,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 app.use(
@@ -47,7 +48,7 @@ app.get("/get-list", isAuth, async (req, res) => {
     const result = await pool.query("SELECT * FROM list ORDER BY id");
     res.json({ success: true, list: result.rows });
   } catch (err) {
-    console.error(err.stack);
+    console.error("Get List Error:", err.stack);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
@@ -61,7 +62,7 @@ app.get("/get-items/:id", isAuth, async (req, res) => {
     );
     res.json({ success: true, items: result.rows });
   } catch (err) {
-    console.error(err.stack);
+    console.error("Get Items Error:", err.stack);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
@@ -69,8 +70,7 @@ app.get("/get-items/:id", isAuth, async (req, res) => {
 app.post("/add-list", isAuth, async (req, res) => {
   try {
     const { listTitle } = req.body;
-    if (!listTitle?.trim())
-      return res.status(400).json({ success: false, message: "List title required" });
+    if (!listTitle?.trim()) return res.status(400).json({ success: false, message: "List title required" });
 
     const id = uuidv4();
     await pool.query("INSERT INTO list (id, title, status) VALUES ($1, $2, $3)", [
@@ -81,7 +81,7 @@ app.post("/add-list", isAuth, async (req, res) => {
 
     res.json({ success: true, list: { id, title: listTitle, status: "pending" } });
   } catch (err) {
-    console.error(err.stack);
+    console.error("Add List Error:", err.stack);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
@@ -89,8 +89,7 @@ app.post("/add-list", isAuth, async (req, res) => {
 app.post("/add-item", isAuth, async (req, res) => {
   try {
     const { listId, description } = req.body;
-    if (!listId || !description?.trim())
-      return res.status(400).json({ success: false, message: "Invalid data" });
+    if (!listId || !description?.trim()) return res.status(400).json({ success: false, message: "Invalid data" });
 
     const id = uuidv4();
     await pool.query(
@@ -100,14 +99,18 @@ app.post("/add-item", isAuth, async (req, res) => {
 
     res.json({ success: true, item: { id, list_id: listId, description, status: "pending" } });
   } catch (err) {
-    console.error(err.stack);
+    console.error("Add Item Error:", err.stack);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
+/* ===== AUTH ROUTES ===== */
 app.post("/register", async (req, res) => {
   try {
     const { name, username, password, confirm } = req.body;
+
+    console.log("Register payload:", req.body); // Debug log
+
     if (!name || !username || !password || !confirm) {
       return res.status(400).json({ success: false, message: "Incomplete data" });
     }
@@ -116,24 +119,21 @@ app.post("/register", async (req, res) => {
       return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
-    const exists = await pool.query(
-      "SELECT id FROM users WHERE username = $1",
-      [username]
-    );
-
+    const exists = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
     if (exists.rows.length > 0) {
       return res.status(400).json({ success: false, message: "User already exists" });
     }
 
     const hashedPassword = await hashPassword(password);
-    await pool.query(
-      "INSERT INTO users (name, username, password) VALUES ($1, $2, $3)",
-      [name, username, hashedPassword]
-    );
+    await pool.query("INSERT INTO users (name, username, password) VALUES ($1, $2, $3)", [
+      name,
+      username,
+      hashedPassword,
+    ]);
 
     res.json({ success: true, message: "Registered successfully" });
   } catch (err) {
-    console.error("Register Error:", err); // Add logging
+    console.error("Register Error:", err.stack);
     res.status(500).json({ success: false, message: "Server error during registration" });
   }
 });
@@ -141,26 +141,22 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password)
-      return res.status(400).json({ success: false, message: "Incomplete data" });
+    if (!username || !password) return res.status(400).json({ success: false, message: "Incomplete data" });
 
-    const result = await pool.query("SELECT id, name, password FROM users WHERE username = $1", [
-      username,
-    ]);
+    const result = await pool.query("SELECT id, name, password FROM users WHERE username = $1", [username]);
 
     if (result.rows.length === 0)
       return res.status(400).json({ success: false, message: "Invalid credentials" });
 
     const user = result.rows[0];
     const match = await comparePassword(password, user.password);
-    if (!match)
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    if (!match) return res.status(400).json({ success: false, message: "Invalid credentials" });
 
     req.session.user = { id: user.id, name: user.name };
     res.json({ success: true, user: req.session.user });
   } catch (err) {
-    console.error(err.stack);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Login Error:", err.stack);
+    res.status(500).json({ success: false, message: "Server error during login" });
   }
 });
 

@@ -25,29 +25,57 @@ function Register() {
       return;
     }
 
+    if (!name || !username || !password || !confirm) {
+      setType("error");
+      setMessage("Please fill in all fields");
+      return;
+    }
+
     setLoading(true);
 
     try {
-     const response = await axios.post(
-  `${import.meta.env.VITE_API_URL}/register`,
-  { name, username, password, confirm }, // <-- include confirm
-  { withCredentials: true } // important if backend uses session
-);
+      // 1️⃣ Register user
+      const registerResponse = await axios.post(
+        `${import.meta.env.VITE_API_URL}/register`,
+        { name, username, password, confirm },
+        { withCredentials: true }
+      );
 
-
-      if (response.data.success) {
+      if (registerResponse.data.success) {
         setType("success");
         setMessage("Account created successfully!");
 
-        // Redirect to login after short delay
-        setTimeout(() => {
-          navigate("/");
-        }, 1000);
+        // 2️⃣ Optional: Automatically log in after registration
+        try {
+          const loginResponse = await axios.post(
+            `${import.meta.env.VITE_API_URL}/login`,
+            { username, password },
+            { withCredentials: true }
+          );
+
+          if (loginResponse.data.success) {
+            // Redirect to home/dashboard
+            setTimeout(() => {
+              navigate("/home");
+            }, 500);
+          } else {
+            // Redirect to login page if login fails
+            setTimeout(() => {
+              navigate("/");
+            }, 1000);
+          }
+        } catch (loginError) {
+          console.error("Login after registration failed:", loginError);
+          setTimeout(() => {
+            navigate("/");
+          }, 1000);
+        }
       } else {
         setType("error");
-        setMessage(response.data.message || "Registration failed");
+        setMessage(registerResponse.data.message || "Registration failed");
       }
     } catch (error) {
+      console.error("Registration error:", error);
       setType("error");
       setMessage(
         error.response?.data?.message || "Server error during registration"
@@ -78,7 +106,6 @@ function Register() {
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
-
           <div>
             <label className="block text-sm mb-1 text-gray-300">
               Full Name
@@ -164,7 +191,6 @@ function Register() {
               Login
             </Link>
           </p>
-
         </form>
       </div>
     </div>
