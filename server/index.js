@@ -9,11 +9,14 @@ import { hashPassword, comparePassword } from "./components/hash.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+/* ===== TRUST PROXY ===== */
+app.set("trust proxy", 1); // required for cookies behind Render / proxies
+
 /* ===== MIDDLEWARE ===== */
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true,
+    origin: process.env.CLIENT_URL || "http://localhost:5173", // frontend URL
+    credentials: true, // allow cookies
   })
 );
 
@@ -29,7 +32,7 @@ app.use(
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 1000 * 60 * 60 * 24,
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
   })
 );
@@ -41,6 +44,17 @@ const isAuth = (req, res, next) => {
   }
   next();
 };
+
+/* ===== TEST ROUTE ===== */
+app.get("/db-test", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({ success: true, time: result.rows[0] });
+  } catch (err) {
+    console.error("DB Test Error:", err.stack);
+    res.status(500).json({ success: false, message: "Database error" });
+  }
+});
 
 /* ===== LIST ROUTES ===== */
 app.get("/get-list", isAuth, async (req, res) => {
@@ -70,7 +84,8 @@ app.get("/get-items/:id", isAuth, async (req, res) => {
 app.post("/add-list", isAuth, async (req, res) => {
   try {
     const { listTitle } = req.body;
-    if (!listTitle?.trim()) return res.status(400).json({ success: false, message: "List title required" });
+    if (!listTitle?.trim())
+      return res.status(400).json({ success: false, message: "List title required" });
 
     const id = uuidv4();
     await pool.query("INSERT INTO list (id, title, status) VALUES ($1, $2, $3)", [
@@ -89,7 +104,8 @@ app.post("/add-list", isAuth, async (req, res) => {
 app.post("/add-item", isAuth, async (req, res) => {
   try {
     const { listId, description } = req.body;
-    if (!listId || !description?.trim()) return res.status(400).json({ success: false, message: "Invalid data" });
+    if (!listId || !description?.trim())
+      return res.status(400).json({ success: false, message: "Invalid data" });
 
     const id = uuidv4();
     await pool.query(
@@ -104,66 +120,50 @@ app.post("/add-item", isAuth, async (req, res) => {
   }
 });
 
+/* ===== AUTH ROUTES ===== */
 app.post("/register", async (req, res) => {
   try {
     const { name, username, password, confirm } = req.body;
-    console.log("Register attempt:", { name, username, password, confirm });
-
-    // 1️⃣ Validate input
-    if (!name || !username || !password || !confirm) {
+    if (!name || !username || !password || !confirm)
       return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-    if (password !== confirm) {
+    if (password !== confirm)
       return res.status(400).json({ success: false, message: "Passwords do not match" });
-    }
 
-    // 2️⃣ Check if user exists
     const exists = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
-    if (exists.rows.length > 0) {
+    if (exists.rows.length > 0)
       return res.status(400).json({ success: false, message: "Username already taken" });
-    }
 
-    // 3️⃣ Hash password
     const hashedPassword = await hashPassword(password);
-    console.log("Hashed password:", hashedPassword);
-
-    // 4️⃣ Insert user
     const result = await pool.query(
       "INSERT INTO users (name, username, password) VALUES ($1, $2, $3) RETURNING id, username",
       [name, username, hashedPassword]
     );
-    console.log("User inserted:", result.rows[0]);
 
-    // 5️⃣ Respond success
     res.json({ success: true, message: "Registered successfully", user: result.rows[0] });
-
   } catch (err) {
-    console.error("Register Error:", err.message, err.stack);
-
-    // PostgreSQL-specific error
-    if (err.code) {
-      res.status(500).json({ success: false, message: `Database error: ${err.message} (code: ${err.code})` });
-    } else {
-      res.status(500).json({ success: false, message: "Unexpected server error during registration" });
-    }
+    console.error("Register Error:", err.stack);
+    res.status(500).json({ success: false, message: "Server error during registration" });
   }
 });
-
-
 
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ success: false, message: "Incomplete data" });
+    if (!username || !password)
+      return res.status(400).json({ success: false, message: "Incomplete data" });
 
-    const result = await pool.query("SELECT id, name, password FROM users WHERE username = $1", [username]);
+    const result = await pool.query(
+      "SELECT id, name, password FROM users WHERE username = $1",
+      [username]
+    );
 
     if (result.rows.length === 0)
       return res.status(400).json({ success: false, message: "Invalid credentials" });
 
     const user = result.rows[0];
     const match = await comparePassword(password, user.password);
-    if (!match) return res.status(400).json({ success: false, message: "Invalid credentials" });
+    if (!match)
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
 
     req.session.user = { id: user.id, name: user.name };
     res.json({ success: true, user: req.session.user });
