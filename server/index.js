@@ -2,6 +2,7 @@
 import "dotenv/config";
 import express from "express";
 import session from "express-session";
+import pgSession from "connect-pg-simple";
 import { v4 as uuidv4 } from "uuid";
 import cors from "cors";
 import { pool } from "./db.js";
@@ -45,14 +46,20 @@ app.set("trust proxy", 1); // for Render / Vercel
 
 const isProd = process.env.NODE_ENV === "production";
 
+const PgSession = pgSession(session);
+
 app.use(
   session({
+    store: new PgSession({
+      pool: pool, // Neon PostgreSQL pool
+      tableName: "user_sessions",
+    }),
     name: "connect.sid",
-    secret: process.env.SESSION_SECRET || "supersecretkey",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production", // HTTPS required in prod
+      secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24,
