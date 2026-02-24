@@ -12,21 +12,25 @@ const PORT = process.env.PORT || 3000;
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://to-do-list-hqwe.onrender.com", // your Render frontend
-  "https://to-do-list-9952vij9e-pengdev-works-projects.vercel.app", // production Vercel
+ "https://to-do-list-inky-seven-18.vercel.app", // production Vercel
 ];
 
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // Postman / server-to-server
-      if (allowedOrigins.includes(origin)) {
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (
+        origin === "http://localhost:5173" ||
+        origin.endsWith(".vercel.app")
+      ) {
         return callback(null, true);
       }
-      callback(new Error(`CORS policy: ${origin} not allowed`), false);
+
+      callback(new Error("Not allowed by CORS"));
     },
-    credentials: true, // important!
+    credentials: true,
   })
 );
 
