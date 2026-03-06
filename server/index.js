@@ -4,6 +4,7 @@ import { pool } from "./db.js";
 import session from "express-session";
 import cors from "cors";
 import { hashPassword, comparePassword } from "./components/hash.js";
+import crypto from "crypto";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -119,14 +120,34 @@ app.post("/add-list", async (req, res) => {
     const { listTitle } = req.body;
     if (!listTitle || listTitle.trim() === "") return res.json({ success: false, message: "List title required" });
 
+    const newId = crypto.randomUUID();
     const result = await pool.query(
-      "INSERT INTO list (title) VALUES ($1) RETURNING *",
-      [listTitle]
+      "INSERT INTO list (id, title) VALUES ($1, $2) RETURNING *",
+      [newId, listTitle]
     );
 
     res.json({ success: true, list: result.rows[0] });
   } catch (err) {
     console.error("ADD LIST ERROR:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update list
+app.post("/update-list/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { listTitle } = req.body;
+    if (!listTitle || listTitle.trim() === "") return res.json({ success: false, message: "List title required" });
+
+    const result = await pool.query(
+      "UPDATE list SET title=$1 WHERE id=$2 RETURNING *",
+      [listTitle, id]
+    );
+
+    res.json({ success: true, list: result.rows[0] });
+  } catch (err) {
+    console.error("UPDATE LIST ERROR:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -168,9 +189,10 @@ app.post("/add-item", async (req, res) => {
     const { listId, description } = req.body;
     if (!listId || !description || description.trim() === "") return res.json({ success: false, message: "Missing listId or description" });
 
+    const newId = crypto.randomUUID();
     const result = await pool.query(
-      "INSERT INTO items (list_id, description) VALUES ($1,$2) RETURNING *",
-      [listId, description]
+      "INSERT INTO items (id, list_id, description) VALUES ($1,$2,$3) RETURNING *",
+      [newId, listId, description]
     );
 
     res.json({ success: true, item: result.rows[0] });

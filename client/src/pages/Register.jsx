@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -12,8 +13,6 @@ export default function Register() {
     password: "",
     confirmPassword: "",
   });
-  const [message, setMessage] = useState("");
-  const [type, setType] = useState(""); // "success" | "error"
   const [loading, setLoading] = useState(false);
 
   // Redirect to home if already logged in
@@ -31,16 +30,18 @@ export default function Register() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setMessage("");
-    setType("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (form.password !== form.confirmPassword) {
-      setType("error");
-      setMessage("Passwords do not match");
+      Swal.fire({
+        icon: "error",
+        title: "Oops...",
+        text: "Passwords do not match!",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
 
@@ -57,21 +58,34 @@ export default function Register() {
       );
 
       if (res.data.success) {
-        setType("success");
-        setMessage("Registered successfully! Redirecting to login...");
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Registered successfully! Redirecting to login...",
+          timer: 1500,
+          showConfirmButton: false,
+        });
 
         setForm({ name: "", username: "", password: "", confirmPassword: "" });
 
         // Redirect to login page (/)
-        setTimeout(() => navigate("/"), 1000);
+        setTimeout(() => navigate("/"), 1500);
       } else {
-        setType("error");
-        setMessage(res.data.message || "Registration failed");
+        Swal.fire({
+          icon: "error",
+          title: "Registration Failed",
+          text: res.data.message || "Something went wrong.",
+          confirmButtonColor: "#3085d6",
+        });
       }
     } catch (err) {
       console.error(err);
-      setType("error");
-      setMessage(err.response?.data?.message || "Cannot connect to server");
+      Swal.fire({
+        icon: "error",
+        title: "Server Error",
+        text: err.response?.data?.message || "Cannot connect to server",
+        confirmButtonColor: "#3085d6",
+      });
     } finally {
       setLoading(false);
     }
@@ -81,16 +95,6 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Register</h2>
-
-        {message && (
-          <div
-            className={`mb-4 text-sm text-center rounded-lg py-2 font-medium ${
-              type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-            }`}
-          >
-            {message}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
